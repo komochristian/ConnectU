@@ -215,9 +215,7 @@ public:
         table[hash_val] = val;
      }
 
-    User* get(string key) {
-        // --- TEMPORARY FALLBACK FOR LAB 1 ---
-        
+    User* get(string key) {        
         // Get hash value for user key
         unsigned long hash_val = hashFunction(key) % TABLE_SIZE;
         HashNode* node = table[hash_val];
@@ -231,7 +229,7 @@ public:
         if (node == nullptr) {
             return nullptr;
         }
-        
+
         return node -> value;
     }
 };
