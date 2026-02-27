@@ -51,9 +51,9 @@ public:
     // Task: Add a new post to the FRONT of the list (O(1))
     void addPost(int pid, int uid, string content, int likes, long time) {
         // TODO: LAB 1
-        Post newPost = {pid, uid, content, likes, time};
-        newPost.next = head;
-        head = &newPost;
+        Post *newPost = new Post(pid, uid, content, likes, time);
+        newPost->next = head;
+        head = newPost;
     }
 
     void printTimeline() {
@@ -68,6 +68,8 @@ public:
             cout << "Post Content: " << current->content << endl;
             cout << "Post likes: " << current->likes << endl;
             cout << "Post timestamp: " << current->timestamp << endl;
+            cout << "---------------" << endl << endl;
+            current = current -> next;
         }
 
     }
@@ -168,7 +170,23 @@ private:
 
     unsigned long hashFunction(string key) {
         // TODO: LAB 2
-        return 0; 
+        const unsigned long MOD = 1000000007;
+        const unsigned long P = 53;
+
+        unsigned long hash_val = 0;
+        unsigned long power = 1;
+
+        //  Apply hashing algorithm to each letter 
+        for (int i = 0; i < key.length(); i++) {
+            int char_val;
+            if (key[i] >= 'a' && key[i] <= 'z') char_val = key[i] - 'a' + 1; // lowercase
+            else if (key[i] >= 'A' && key[i] <= 'Z') char_val = key[i] - 'A' + 27; // uppercase
+            else char_val = key[i]; // keep other chars as-is
+            hash_val = (hash_val + char_val * power) % MOD;
+            power = (power * P) % MOD;
+        }
+
+        return hash_val; 
     }
 
 public:
@@ -177,15 +195,44 @@ public:
         for (int i = 0; i < TABLE_SIZE; i++) table[i] = nullptr;
     }
 
-    void put(string key, User* user) { /* TODO: LAB 2 */ }
+    void put(string key, User* user) { 
+        // Get hash value index to insert user at
+        unsigned long hash_val = hashFunction(key) % TABLE_SIZE;
+        HashNode* node = table[hash_val];
+
+        // Iterate over linked list that handles collisions, check if user exists already
+        while (node != nullptr) {
+            if (node -> key == key) {
+                node -> value = user;
+                return;
+            }
+            node = node -> next;
+        }
+
+        // Add user to head of linked list of bucket, O(1) insertion
+        HashNode* val = new HashNode(key, user);
+        val -> next = table[hash_val];
+        table[hash_val] = val;
+     }
 
     User* get(string key) {
         // --- TEMPORARY FALLBACK FOR LAB 1 ---
-        for(User* u : allUsers) {
-            if (u->username == key) return u;
+        
+        // Get hash value for user key
+        unsigned long hash_val = hashFunction(key) % TABLE_SIZE;
+        HashNode* node = table[hash_val];
+
+        // Iterate through bucket's linked list and find user's key
+        while (node != nullptr && node -> key != key) {
+            node = node -> next;
         }
-        // TODO: LAB 2 - REPLACE ABOVE WITH HASH LOOKUP
-        return nullptr;
+
+        // If user is not found in bucket
+        if (node == nullptr) {
+            return nullptr;
+        }
+        
+        return node -> value;
     }
 };
 
@@ -469,7 +516,7 @@ void showMainMenu() {
         else if (choice == 3) {
             // SAFETY: Commented out to prevent data loss on initial run.
             // Students must uncomment this ONLY when Lab 1 is complete.
-            // saveData(); 
+            saveData(); 
             cout << "Goodbye! " << endl;
         }
     }
