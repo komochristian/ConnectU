@@ -38,7 +38,7 @@ struct Post {
         
     // TODO: LAB 3 - Implement Scoring Logic
     double getScore() {
-        return 0.0; 
+        return (likes*10)+(1000/((time(0) - timestamp)/3600) + 1); 
     }
 };
 
@@ -143,13 +143,57 @@ private:
     Post* heap[1000]; 
     int size;
 
-    void heapifyDown(int index) { /* TODO: LAB 3 */ }
-    void heapifyUp(int index) { /* TODO: LAB 3 */ }
+    void heapifyDown(int index) { 
+        if (index < 0 || index >= size) {
+            return;
+        }
+        int largest = index;
+        int left = 2 * index + 1;
+        int right = 2 * index + 2;
+
+        if (left < size && heap[left]->getScore() > heap[largest]->getScore()) {
+            largest = left;
+        }
+
+        if (right < size && heap[right]->getScore() > heap[largest]->getScore()) {
+            largest = right;
+        }
+
+        if (largest != index) {
+            Post* temp = heap[largest];
+            heap[largest] = heap[index];
+            heap[index] = temp;
+            heapifyDown(largest);
+        }
+     }
+    void heapifyUp(int index) {
+        if (index <= 0 || index >= size) {
+            return;
+        }
+
+        if (heap[(index-1)/2]->getScore() < heap[index]->getScore()) {
+            Post* temp = heap[(index-1)/2];
+            heap[(index-1)/2] = heap[index];
+            heap[index] = temp;
+            heapifyUp((index-1)/2);
+        } 
+    }
 
 public:
     FeedHeap() : size(0) {}
-    void push(Post* p) { /* TODO: LAB 3 */ }
-    Post* popMax() { return nullptr; /* TODO: LAB 3 */ }
+    void push(Post* p) { 
+        if (size >= 1000) return;
+        size++;
+        heap[size-1] = p;
+        heapifyUp(size-1);
+     }
+    Post* popMax() { 
+        Post* root = heap[0];
+        heap[0] = heap[size - 1];
+        size--;
+        heapifyDown(0);
+        return root;
+     }
     bool isEmpty() { return size == 0; }
 };
 
