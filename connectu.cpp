@@ -18,6 +18,7 @@
 #include <set>
 #include <queue>
 #include <algorithm>
+#include <cctype>
 
 using namespace std;
 
@@ -131,10 +132,36 @@ public:
 // BST Implementation
 BSTNode* FriendBST::insert(BSTNode* node, User* u) {
     // TODO: LAB 4
+    if (node == nullptr) {
+        BSTNode* newNode = new BSTNode(u);
+        return newNode;
+    }
+
+    std::string u_username = u->username;
+    std::string node_username = node->user->username;
+
+    std::transform(u_username.begin(), u_username.end(), u_username.begin(),
+                    [](unsigned char c) { return std::tolower(c); });
+    std::transform(node_username.begin(), node_username.end(), node_username.begin(),
+                    [](unsigned char c) { return std::tolower(c); });
+
+    if (u_username < node_username) {
+        node->left = insert(node->left, u);
+    }
+    else {
+        node->right = insert(node->right, u);
+    }
     return node;
 }
 void FriendBST::printInOrder(BSTNode* node) {
     // TODO: LAB 4
+    if (node == nullptr) {
+        return ;
+    }
+
+    printInOrder(node -> left);
+    cout << "userame: " << node -> user -> username << endl;
+    printInOrder(node -> right);
 }
 
 // TODO: LAB 3 - Max Heap
