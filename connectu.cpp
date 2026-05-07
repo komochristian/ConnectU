@@ -308,10 +308,10 @@ public:
 UserMap userMap;
 
 // ==========================================
-// *** NEW: SEARCH POSTS BY KEYWORD ***
+// Lab 6
 // ==========================================
 
-// *** NEW: Bucket node storing a keyword and all Post* containing it ***
+// Bucket node storing a keyword and all Post* containing it
 struct KeywordNode {
     string keyword;
     vector<Post*> posts;
@@ -319,7 +319,7 @@ struct KeywordNode {
     KeywordNode(string kw) : keyword(kw), next(nullptr) {}
 };
 
-// *** NEW: Hash map from keyword -> list of Post* ***
+// Hash map from keyword -> list of Post* ***
 class KeywordIndex {
 private:
     static const int TABLE_SIZE = 10007;
@@ -346,13 +346,12 @@ private:
     }
 
 public:
-    // *** NEW: Initialize all buckets to nullptr ***
     KeywordIndex() {
         table = new KeywordNode*[TABLE_SIZE];
         for (int i = 0; i < TABLE_SIZE; i++) table[i] = nullptr;
     }
 
-    // *** NEW: Insert post under keyword. Append to existing node or prepend new one (chaining) ***
+    // Insert post under keyword. Append to existing node or prepend new one (chaining) ***
     void insert(string keyword, Post* post) {
         unsigned long hash_val = hashFunction(keyword) % TABLE_SIZE;
         KeywordNode* node = table[hash_val];
@@ -371,7 +370,7 @@ public:
         table[hash_val] = newNode;
     }
 
-    // *** NEW: Return posts matching keyword, or empty vector if not found ***
+    // Return posts matching keyword, or empty vector if not found ***
     vector<Post*> search(string keyword) {
         unsigned long hash_val = hashFunction(keyword) % TABLE_SIZE;
         KeywordNode* node = table[hash_val];
@@ -383,10 +382,9 @@ public:
     }
 };
 
-// *** NEW: Global keyword index instance ***
 KeywordIndex keywordIndex;
 
-// *** NEW: Stop words filtered out during indexing ***
+// Stop words filtered out during indexing ***
 set<string> stopWords = {
     "the","and","is","a","an","in","on","at","to","of",
     "for","with","it","this","that","was","are","be","as","by",
@@ -395,7 +393,7 @@ set<string> stopWords = {
     "so","if","up","out","no","can","will","just","about","into"
 };
 
-// *** NEW: Lowercase, strip non-alpha chars, skip stop words ***
+// Lowercase, strip non-alpha chars, skip stop words ***
 vector<string> extractKeywords(const string& content) {
     vector<string> keywords;
     istringstream stream(content);
@@ -412,21 +410,24 @@ vector<string> extractKeywords(const string& content) {
     return keywords;
 }
 
-// *** NEW: Traverse all users and their timelines, index every post by keyword ***
+// Traverse all users and their timelines, index every post by keyword ***
 void buildKeywordIndex() {
     for (User* u : allUsers) {
         Post* curr = u->timeline.head;
         while (curr != nullptr) {
             vector<string> keywords = extractKeywords(curr->content);
+            set<string> seen; 
             for (const string& kw : keywords) {
-                keywordIndex.insert(kw, curr);
+                if (seen.count(kw) == 0) {
+                    seen.insert(kw);
+                    keywordIndex.insert(kw, curr);
+                }
             }
             curr = curr->next;
         }
     }
 }
 
-// *** NEW: Normalize input, check stop words, query index, print results ***
 void searchPostsByKeyword(const string& keyword) {
     string cleanKeyword = "";
     for (char c : keyword) {
@@ -594,7 +595,7 @@ void loadData() {
         }
         postFile.close();
     }
-    buildKeywordIndex(); // *** NEW: Build keyword index after all posts are loaded ***
+    buildKeywordIndex();
 }
 
 void saveData() {
@@ -654,7 +655,7 @@ void clearScreen() {
 
 void showUserDashboard(User* currentUser) {
     int choice = 0;
-    while (choice != 8) { // *** CHANGED: was != 7, now != 8 to accommodate new menu option ***
+    while (choice != 8) { 
         cout << "\n--- Welcome, @" << currentUser->username << " ---" << endl;
         cout << "1. View My Post (Lab 1)" << endl;
         cout << "2. Create New Post (Lab 1)" << endl;
@@ -662,8 +663,8 @@ void showUserDashboard(User* currentUser) {
         cout << "4. Algorithmic Feed (Lab 3)" << endl;
         cout << "5. View Friends Sorted (Lab 4)" << endl;
         cout << "6. Get Friend Recommendations (Lab 5)" << endl;
-        cout << "7. Search Posts by Keyword (Lab 6)" << endl; // *** NEW menu option ***
-        cout << "8. Logout" << endl;                          // *** CHANGED: was 7 ***
+        cout << "7. Search Posts by Keyword (Lab 6)" << endl; 
+        cout << "8. Logout" << endl;                          
         cout << "Select >> ";
         cin >> choice;
 
@@ -677,11 +678,17 @@ void showUserDashboard(User* currentUser) {
             string content;
             getline(cin, content);
             createNewPost(currentUser, content);
-            // *** NEW: Index the new post immediately so it is searchable right away ***
+            
             Post* newest = currentUser->timeline.head;
             if (newest) {
                 vector<string> keywords = extractKeywords(newest->content);
-                for (const string& kw : keywords) keywordIndex.insert(kw, newest);
+                set<string> seen; 
+                for (const string& kw : keywords) {
+                    if (seen.count(kw) == 0) {
+                        seen.insert(kw);
+                        keywordIndex.insert(kw, newest);
+                    }
+                }
             }
         }
         else if (choice == 3) {
@@ -731,13 +738,13 @@ void showUserDashboard(User* currentUser) {
         else if (choice == 6) {
              recommendFriends(currentUser);
         }
-        else if (choice == 7) { // *** NEW: Keyword search handler ***
+        else if (choice == 7) { 
             string keyword;
             cout << "\nEnter keyword to search: ";
             cin >> keyword;
             searchPostsByKeyword(keyword);
         }
-        else if (choice == 8) { // *** CHANGED: was == 7 ***
+        else if (choice == 8) { 
             cout << "Logging out..." << endl;
         }
     }
