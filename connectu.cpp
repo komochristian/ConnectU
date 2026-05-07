@@ -308,6 +308,156 @@ public:
 UserMap userMap;
 
 // ==========================================
+// *** NEW: SEARCH POSTS BY KEYWORD ***
+// ==========================================
+
+// *** NEW: Bucket node storing a keyword and all Post* containing it ***
+struct KeywordNode {
+    string keyword;
+    vector<Post*> posts;
+    KeywordNode* next;
+    KeywordNode(string kw) : keyword(kw), next(nullptr) {}
+};
+
+// *** NEW: Hash map from keyword -> list of Post* ***
+class KeywordIndex {
+private:
+    static const int TABLE_SIZE = 10007;
+    KeywordNode** table;
+
+    // *** NEW: Same polynomial rolling hash as UserMap ***
+    unsigned long hashFunction(string key) {
+        const unsigned long MOD = 1000000007;
+        const unsigned long P = 53;
+
+        unsigned long hash_val = 0;
+        unsigned long power = 1;
+
+        for (int i = 0; i < key.length(); i++) {
+            int char_val;
+            if (key[i] >= 'a' && key[i] <= 'z') char_val = key[i] - 'a' + 1;
+            else if (key[i] >= 'A' && key[i] <= 'Z') char_val = key[i] - 'A' + 27;
+            else char_val = key[i];
+            hash_val = (hash_val + char_val * power) % MOD;
+            power = (power * P) % MOD;
+        }
+
+        return hash_val;
+    }
+
+public:
+    // *** NEW: Initialize all buckets to nullptr ***
+    KeywordIndex() {
+        table = new KeywordNode*[TABLE_SIZE];
+        for (int i = 0; i < TABLE_SIZE; i++) table[i] = nullptr;
+    }
+
+    // *** NEW: Insert post under keyword. Append to existing node or prepend new one (chaining) ***
+    void insert(string keyword, Post* post) {
+        unsigned long hash_val = hashFunction(keyword) % TABLE_SIZE;
+        KeywordNode* node = table[hash_val];
+
+        while (node != nullptr) {
+            if (node->keyword == keyword) {
+                node->posts.push_back(post);
+                return;
+            }
+            node = node->next;
+        }
+
+        KeywordNode* newNode = new KeywordNode(keyword);
+        newNode->posts.push_back(post);
+        newNode->next = table[hash_val];
+        table[hash_val] = newNode;
+    }
+
+    // *** NEW: Return posts matching keyword, or empty vector if not found ***
+    vector<Post*> search(string keyword) {
+        unsigned long hash_val = hashFunction(keyword) % TABLE_SIZE;
+        KeywordNode* node = table[hash_val];
+        while (node != nullptr) {
+            if (node->keyword == keyword) return node->posts;
+            node = node->next;
+        }
+        return {};
+    }
+};
+
+// *** NEW: Global keyword index instance ***
+KeywordIndex keywordIndex;
+
+// *** NEW: Stop words filtered out during indexing ***
+set<string> stopWords = {
+    "the","and","is","a","an","in","on","at","to","of",
+    "for","with","it","this","that","was","are","be","as","by",
+    "or","but","not","from","have","had","he","she","they","we",
+    "you","i","my","your","his","her","its","our","do","did",
+    "so","if","up","out","no","can","will","just","about","into"
+};
+
+// *** NEW: Lowercase, strip non-alpha chars, skip stop words ***
+vector<string> extractKeywords(const string& content) {
+    vector<string> keywords;
+    istringstream stream(content);
+    string word;
+    while (stream >> word) {
+        string clean = "";
+        for (char c : word) {
+            if (isalpha(c)) clean += tolower(c);
+        }
+        if (clean.empty()) continue;
+        if (stopWords.count(clean)) continue;
+        keywords.push_back(clean);
+    }
+    return keywords;
+}
+
+// *** NEW: Traverse all users and their timelines, index every post by keyword ***
+void buildKeywordIndex() {
+    for (User* u : allUsers) {
+        Post* curr = u->timeline.head;
+        while (curr != nullptr) {
+            vector<string> keywords = extractKeywords(curr->content);
+            for (const string& kw : keywords) {
+                keywordIndex.insert(kw, curr);
+            }
+            curr = curr->next;
+        }
+    }
+}
+
+// *** NEW: Normalize input, check stop words, query index, print results ***
+void searchPostsByKeyword(const string& keyword) {
+    string cleanKeyword = "";
+    for (char c : keyword) {
+        if (isalpha(c)) cleanKeyword += tolower(c);
+    }
+
+    if (cleanKeyword.empty()) {
+        cout << "[ERROR] Invalid keyword." << endl;
+        return;
+    }
+    if (stopWords.count(cleanKeyword)) {
+        cout << "[INFO] \"" << cleanKeyword << "\" is a common filler word and is not indexed." << endl;
+        return;
+    }
+
+    vector<Post*> results = keywordIndex.search(cleanKeyword);
+    if (results.empty()) {
+        cout << "[SEARCH] No posts found containing \"" << cleanKeyword << "\"." << endl;
+        return;
+    }
+
+    cout << "\n[SEARCH] Found " << results.size() << " post(s) containing \"" << cleanKeyword << "\":" << endl;
+    for (Post* p : results) {
+        cout << "  [ID: " << p->postId << "] @"
+             << allUsers[p->userId - 1]->username
+             << ": " << p->content
+             << " (" << p->likes << " likes)" << endl;
+    }
+}
+
+// ==========================================
 // UTILITY FUNCTIONS
 // ==========================================
 
@@ -444,6 +594,7 @@ void loadData() {
         }
         postFile.close();
     }
+    buildKeywordIndex(); // *** NEW: Build keyword index after all posts are loaded ***
 }
 
 void saveData() {
@@ -503,7 +654,7 @@ void clearScreen() {
 
 void showUserDashboard(User* currentUser) {
     int choice = 0;
-    while (choice != 7) {
+    while (choice != 8) { // *** CHANGED: was != 7, now != 8 to accommodate new menu option ***
         cout << "\n--- Welcome, @" << currentUser->username << " ---" << endl;
         cout << "1. View My Post (Lab 1)" << endl;
         cout << "2. Create New Post (Lab 1)" << endl;
@@ -511,7 +662,8 @@ void showUserDashboard(User* currentUser) {
         cout << "4. Algorithmic Feed (Lab 3)" << endl;
         cout << "5. View Friends Sorted (Lab 4)" << endl;
         cout << "6. Get Friend Recommendations (Lab 5)" << endl;
-        cout << "7. Logout" << endl;
+        cout << "7. Search Posts by Keyword (Lab 6)" << endl; // *** NEW menu option ***
+        cout << "8. Logout" << endl;                          // *** CHANGED: was 7 ***
         cout << "Select >> ";
         cin >> choice;
 
@@ -525,6 +677,12 @@ void showUserDashboard(User* currentUser) {
             string content;
             getline(cin, content);
             createNewPost(currentUser, content);
+            // *** NEW: Index the new post immediately so it is searchable right away ***
+            Post* newest = currentUser->timeline.head;
+            if (newest) {
+                vector<string> keywords = extractKeywords(newest->content);
+                for (const string& kw : keywords) keywordIndex.insert(kw, newest);
+            }
         }
         else if (choice == 3) {
             string friendName;
@@ -573,7 +731,13 @@ void showUserDashboard(User* currentUser) {
         else if (choice == 6) {
              recommendFriends(currentUser);
         }
-        else if (choice == 7) {
+        else if (choice == 7) { // *** NEW: Keyword search handler ***
+            string keyword;
+            cout << "\nEnter keyword to search: ";
+            cin >> keyword;
+            searchPostsByKeyword(keyword);
+        }
+        else if (choice == 8) { // *** CHANGED: was == 7 ***
             cout << "Logging out..." << endl;
         }
     }
